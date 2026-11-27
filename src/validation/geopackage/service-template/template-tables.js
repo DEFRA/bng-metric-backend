@@ -2,6 +2,7 @@ import { FORMAT_BNG_SERVICE } from 'bng-library/bng-service'
 
 import { parseProposedAdvanceDelayYears } from '../post-intervention/extract-post-intervention-sub-objects.js'
 import { templateForVersion } from './supported-versions.js'
+import { PRIMARY_KEY as FID } from './template-mapping.js'
 
 /**
  * Where a read finds the BNG Service template's layers, in place of the legacy
@@ -11,9 +12,6 @@ import { templateForVersion } from './supported-versions.js'
  * version, so the tables are named, not searched for: each logical layer the
  * version's mapping reads comes from that layer's table at the requested stage.
  */
-
-/** The primary key, kept on every feature: messages name a row by it. */
-const FID = 'fid'
 
 // The template's years created in advance and years of delay, which trees
 // name differently. Its form greys out one while the other is above 0, so a

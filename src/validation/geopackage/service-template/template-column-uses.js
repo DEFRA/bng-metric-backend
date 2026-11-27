@@ -1,9 +1,12 @@
 import {
   FEATURE_UUID,
+  GEOMETRY_COLUMN,
   PARENT_GEOM,
   PARENT_REF,
   PARENT_UUID
 } from 'bng-library/bng-service'
+
+import { PRIMARY_KEY } from './template-mapping.js'
 
 /**
  * What the service does with each column of version 1.0 of the BNG Service
@@ -23,7 +26,8 @@ import {
  *   under the stage's feature in the data dictionary (e.g. `baseline.type`
  *   for `postIntervention.habitats[].baseline.type`). Empty when the value
  *   is kept only in the feature's `properties`, as every column the reader
- *   keeps is.
+ *   keeps is. The geometry's stored field, the layer's PostGIS column, is
+ *   added by the mapping (template-field-mapping.js).
  * - `note`: what a reader of the mapping needs to know beyond that.
  *
  * Every text column, read or not, is also checked at upload for its length
@@ -102,6 +106,27 @@ const DERIVED_DISTINCTIVENESS =
 const NOT_PRICED_FROM_FILE =
   'Dropped: the service does not price spatial risk from the file.'
 
+const ROW_KEY = used([VALIDATION], {
+  note: 'The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref.'
+})
+
+const STORED_SHAPE =
+  'Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map.'
+const SHAPE_CHECKED =
+  'The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary.'
+
+/** A feature's shape, which its size is measured from: a `measure` of it. */
+const measuredShape = (measure) =>
+  used([CALCULATION, VALIDATION, DISPLAY], {
+    note: `${STORED_SHAPE} The ${measure} the units are priced on is measured from it. ${SHAPE_CHECKED}`
+  })
+
+/** A feature's shape, whose size a column gives instead. */
+const unmeasuredShape = (sizedBy) =>
+  used([VALIDATION, DISPLAY], {
+    note: `${STORED_SHAPE} Its size comes from ${sizedBy}, not the shape. ${SHAPE_CHECKED}`
+  })
+
 const HABITAT_REF_NOTE =
   'Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS).'
 
@@ -163,6 +188,7 @@ const timingUses = (advanceColumn, delayColumn) => ({
 
 /** Every habitat layer but trees: identity, lineage, condition, timing. */
 const HABITAT_USES = {
+  [PRIMARY_KEY]: ROW_KEY,
   'Habitat Ref': used([VALIDATION, DISPLAY], {
     baseline: ['ref'],
     postIntervention: ['ref'],
@@ -209,8 +235,14 @@ const AREA_TYPE_USES = {
  *   logical layer, as template-mapping.js keys it → template column → its use
  */
 export const TEMPLATE_COLUMN_USES_1_0 = Object.freeze({
-  redline: Object.freeze(
-    Object.fromEntries(
+  redline: Object.freeze({
+    [PRIMARY_KEY]: ignored(
+      'Kept in `properties`: the Red Line Boundary holds one boundary, so nothing names it by its row.'
+    ),
+    [GEOMETRY_COLUMN]: used([VALIDATION, DISPLAY], {
+      note: `The site’s boundary. ${STORED_SHAPE} Every feature is checked to lie inside it; the file is refused when it has none, more than one, or one that cannot be read, lies outside England or is too large.`
+    }),
+    ...Object.fromEntries(
       [
         'Site Name',
         'Location',
@@ -224,15 +256,17 @@ export const TEMPLATE_COLUMN_USES_1_0 = Object.freeze({
         ignored('The Red Line Boundary is read for its geometry alone.')
       ])
     )
-  ),
+  }),
   areas: Object.freeze({
     ...HABITAT_USES,
     ...AREA_TYPE_USES,
+    [GEOMETRY_COLUMN]: measuredShape('area'),
     Area: ignored(MEASURED)
   }),
   verticalHabitats: Object.freeze({
     ...HABITAT_USES,
     ...AREA_TYPE_USES,
+    [GEOMETRY_COLUMN]: unmeasuredShape('its Area'),
     Area: used([CALCULATION, VALIDATION, DISPLAY], {
       baseline: ['sizeSquareMetres', 'area'],
       postIntervention: ['sizeSquareMetres', 'area'],
@@ -249,6 +283,7 @@ export const TEMPLATE_COLUMN_USES_1_0 = Object.freeze({
       [CALCULATION, VALIDATION, DISPLAY],
       proposedValue('type')
     ),
+    [GEOMETRY_COLUMN]: measuredShape('length'),
     Length: ignored(MEASURED),
     'Baseline Length': ignored(MEASURED)
   }),
@@ -281,10 +316,13 @@ export const TEMPLATE_COLUMN_USES_1_0 = Object.freeze({
     'Enhancement Type': ignored(
       'Kept in `properties`; nothing reads it from a BNG Service template file yet.'
     ),
+    [GEOMETRY_COLUMN]: measuredShape('length'),
     Length: ignored(MEASURED),
     'Baseline Length': ignored(MEASURED)
   }),
   trees: Object.freeze({
+    [PRIMARY_KEY]: ROW_KEY,
+    [GEOMETRY_COLUMN]: unmeasuredShape('its tree size: each point is one tree'),
     'Habitat Ref': used([VALIDATION, DISPLAY], {
       baseline: ['ref'],
       postIntervention: ['ref'],
