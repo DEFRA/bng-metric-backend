@@ -250,6 +250,19 @@ describe('the BNG Service template 1.0 field mapping', () => {
       ])
     })
 
+    test('when no PostGIS table stores a layer’s geometry', () => {
+      const { trees, ...baseline } = SOURCES.geometryColumns.baseline
+      const { problems } = buildTemplateFieldMapping({
+        ...SOURCES,
+        geometryColumns: { ...SOURCES.geometryColumns, baseline }
+      })
+
+      expect(trees).toBeDefined()
+      expect(problems).toEqual([
+        `Individual Trees Baseline / ${GEOMETRY_COLUMN}: no PostGIS table stores the trees layer's geometry`
+      ])
+    })
+
     test('when a stored field is not in the data dictionary', () => {
       const { problems } = buildTemplateFieldMapping({
         ...SOURCES,

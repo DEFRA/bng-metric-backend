@@ -77,10 +77,12 @@ function featurePath(stage, layer) {
 /** The fields a column fills at one stage, as full data-dictionary paths. */
 function stageFields({ layer, stage, column, readAs, columnUse, sources }) {
   // The geometry is stored in the layer's PostGIS table, keyed by the
-  // feature's featureId, not in the document.
+  // feature's featureId, not in the document. Null when no table stores it,
+  // which columnRow reports.
   if (readAs === READ_AS_GEOMETRY) {
     return [
-      sources.geometryColumns[STAGE_DOCUMENT[stage]][DOCUMENT_LAYER[layer]]
+      sources.geometryColumns[STAGE_DOCUMENT[stage]]?.[DOCUMENT_LAYER[layer]] ??
+        null
     ]
   }
   const feature = featurePath(stage, layer)
@@ -157,6 +159,31 @@ function unmappable(readAs, columnUse) {
 }
 
 /**
+ * The problems with a column's stored fields: a geometry no PostGIS table
+ * stores, or a field the data dictionary does not declare.
+ *
+ * @param {string} label the table and column, for the message
+ * @param {string} layer
+ * @param {Array<string | null>} fields
+ * @param {Set<string>} dictionaryPaths
+ * @returns {string[]}
+ */
+function storedFieldProblems(label, layer, fields, dictionaryPaths) {
+  const problems = fields.includes(null)
+    ? [`${label}: no PostGIS table stores the ${layer} layer's geometry`]
+    : []
+  const undeclared = fields.filter(
+    (field) => field !== null && !dictionaryPaths.has(dictionaryPathOf(field))
+  )
+  return [
+    ...problems,
+    ...undeclared.map(
+      (field) => `${label}: ${field} is not in the data dictionary`
+    )
+  ]
+}
+
+/**
  * One column's row, and the problems with it.
  *
  * @returns {{ row: MappingRow | null, problems: string[] }}
@@ -183,13 +210,8 @@ function columnRow({ table, layer, stage, column, geometryColumn, sources }) {
     columnUse,
     sources
   })
-  const undeclared = fields.filter(
-    (field) => !sources.dictionaryPaths.has(dictionaryPathOf(field))
-  )
   problems.push(
-    ...undeclared.map(
-      (field) => `${label}: ${field} is not in the data dictionary`
-    )
+    ...storedFieldProblems(label, layer, fields, sources.dictionaryPaths)
   )
   const row = {
     table,
@@ -198,7 +220,7 @@ function columnRow({ table, layer, stage, column, geometryColumn, sources }) {
     readAs,
     use: columnUse.use,
     usedBy: [...columnUse.usedBy],
-    storedFields: fields,
+    storedFields: fields.filter((field) => field !== null),
     note: columnUse.note
   }
   return { row, problems }
