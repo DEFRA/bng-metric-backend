@@ -3,23 +3,15 @@
     "description": "Verdicts recorded from the PostGIS geometry-validation engine, for every GeoPackage in the harness example-files/ corpus. Captured before that engine was removed, so the in-process GEOS engine stays regression-tested against what PostGIS actually said.",
     "recordedFrom": "src/validation/geopackage/postgis/index.js",
     "recordedAtCommit": "3c2c3f98965f0dae37f90e3aa2dc2dff3f4e60e5",
-    "fileCount": 98,
+    "fileCount": 97,
     "regenerate": "The PostGIS engine no longer exists on main. To re-record: git checkout <recordedAtCommit> -- src/validation/geopackage/postgis/ and re-run the capture against a local PostGIS."
   },
   "verdicts": {
-    "attribute-problems/Baseline - duplicate habitat ref.gpkg": {
-      "valid": true,
-      "errors": []
-    },
     "attribute-problems/Baseline - habitat distinctiveness out of scope.gpkg": {
       "valid": true,
       "errors": []
     },
     "attribute-problems/Post-intervention - advance and delay both set.gpkg": {
-      "valid": true,
-      "errors": []
-    },
-    "attribute-problems/Post-intervention - missing proposed habitat data.gpkg": {
       "valid": true,
       "errors": []
     },
@@ -111,10 +103,6 @@
         }
       ]
     },
-    "empty-layer/Baseline - no hedgerows.gpkg": {
-      "valid": true,
-      "errors": []
-    },
     "empty-layer/Baseline - no rlb polygons.gpkg": {
       "valid": false,
       "errors": [
@@ -123,10 +111,6 @@
           "message": "Baseline file contains no redline boundary polygon"
         }
       ]
-    },
-    "empty-layer/Baseline - no watercourses.gpkg": {
-      "valid": true,
-      "errors": []
     },
     "filename-problems/Baseline [invalid chars].gpkg": {
       "valid": true,
@@ -219,10 +203,6 @@
           "message": "Baseline file contains no redline boundary polygon"
         }
       ]
-    },
-    "invalid-schema/Post-intervention - wrong geometry column name in RLB layer.gpkg": {
-      "valid": true,
-      "errors": []
     },
     "invalid-schema/Post-intervention - wrong geometry type in RLB layer.gpkg": {
       "valid": false,
@@ -371,11 +351,11 @@
       "valid": true,
       "errors": []
     },
-    "permutations/data-completeness/data-incomplete-mix-baseline.gpkg": {
+    "permutations/data-completeness/invalid-data-incomplete-baseline.gpkg": {
       "valid": true,
       "errors": []
     },
-    "permutations/data-completeness/data-incomplete-mix-post-intervention.gpkg": {
+    "permutations/data-completeness/invalid-data-incomplete-post-intervention.gpkg": {
       "valid": true,
       "errors": []
     },
@@ -771,6 +751,18 @@
       "valid": true,
       "errors": []
     },
+    "valid/Baseline - duplicate habitat ref.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Baseline - no hedgerows.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Baseline - no watercourses.gpkg": {
+      "valid": true,
+      "errors": []
+    },
     "valid/Baseline - retained areas hedgerows and watercourses.gpkg": {
       "valid": true,
       "errors": []
@@ -804,6 +796,10 @@
       "errors": []
     },
     "valid/Post-intervention - created linear features.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Post-intervention - missing proposed habitat data.gpkg": {
       "valid": true,
       "errors": []
     },
