@@ -86,7 +86,7 @@
     "proj4": "2.23.0",
     "swagger-jsdoc": "6.3.0",
     "swagger-ui-dist": "5.35.1",
-    "undici": "8.12.4"
+    "undici": "8.13.0"
   },
   "devDependencies": {
     "@emnapi/core": "1.11.3",
