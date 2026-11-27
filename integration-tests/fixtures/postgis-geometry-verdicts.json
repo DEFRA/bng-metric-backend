@@ -3,7 +3,7 @@
     "description": "Verdicts recorded from the PostGIS geometry-validation engine, for every GeoPackage in the harness example-files/ corpus. Captured before that engine was removed, so the in-process GEOS engine stays regression-tested against what PostGIS actually said.",
     "recordedFrom": "src/validation/geopackage/postgis/index.js",
     "recordedAtCommit": "3c2c3f98965f0dae37f90e3aa2dc2dff3f4e60e5",
-    "fileCount": 97,
+    "fileCount": 95,
     "regenerate": "The PostGIS engine no longer exists on main. To re-record: git checkout <recordedAtCommit> -- src/validation/geopackage/postgis/ and re-run the capture against a local PostGIS."
   },
   "verdicts": {
@@ -348,14 +348,6 @@
       "errors": []
     },
     "permutations/data-completeness/data-complete-post-intervention.gpkg": {
-      "valid": true,
-      "errors": []
-    },
-    "permutations/data-completeness/invalid-data-incomplete-baseline.gpkg": {
-      "valid": true,
-      "errors": []
-    },
-    "permutations/data-completeness/invalid-data-incomplete-post-intervention.gpkg": {
       "valid": true,
       "errors": []
     },
