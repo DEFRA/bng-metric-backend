@@ -176,7 +176,7 @@ export function describeTable(table) {
   }
 }
 
-function collectTables() {
+export function collectTables() {
   return Object.values(dbSchema)
     .filter((value) => is(value, PgTable))
     .map(describeTable)

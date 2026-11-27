@@ -7,6 +7,32 @@
     {
       "table": "Red Line Boundary",
       "stage": "both",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [
+        "baseline.redLine.properties[\"fid\"]",
+        "postIntervention.redLine.properties[\"fid\"]"
+      ],
+      "note": "Kept in `properties`: the Red Line Boundary holds one boundary, so nothing names it by its row."
+    },
+    {
+      "table": "Red Line Boundary",
+      "stage": "both",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "bng.baseline_red_line.geom",
+        "bng.post_intervention_red_line.geom"
+      ],
+      "note": "The site’s boundary. Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. Every feature is checked to lie inside it; the file is refused when it has none, more than one, or one that cannot be read, lies outside England or is too large."
+    },
+    {
+      "table": "Red Line Boundary",
+      "stage": "both",
       "column": "Site Name",
       "readAs": null,
       "use": "ignored",
@@ -73,6 +99,26 @@
       "usedBy": [],
       "storedFields": [],
       "note": "The Red Line Boundary is read for its geometry alone."
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["baseline.habitats[].properties[\"fid\"]"],
+      "note": "The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref."
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": ["bng.baseline_habitats.geom"],
+      "note": "Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. The area the units are priced on is measured from it. The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary."
     },
     {
       "table": "Area Habitats Baseline",
@@ -196,6 +242,26 @@
         "baseline.habitats[].properties[\"feature_uuid\"]"
       ],
       "note": "Named by a post-intervention feature’s parent_uuid: the lineage checks match on it."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["postIntervention.habitats[].properties[\"fid\"]"],
+      "note": "The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": ["bng.post_intervention_habitats.geom"],
+      "note": "Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. The area the units are priced on is measured from it. The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary."
     },
     {
       "table": "Area Habitats Post-Intervention",
@@ -460,6 +526,26 @@
     {
       "table": "Vertical Area Habitats Baseline",
       "stage": "baseline",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["baseline.verticalHabitats[].properties[\"fid\"]"],
+      "note": "The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref."
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": ["bng.baseline_vertical_habitats.geom"],
+      "note": "Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. Its size comes from its Area, not the shape. The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary."
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
       "column": "Habitat Ref",
       "readAs": "Parcel Ref",
       "use": "used",
@@ -583,6 +669,28 @@
         "baseline.verticalHabitats[].properties[\"feature_uuid\"]"
       ],
       "note": "Named by a post-intervention feature’s parent_uuid: the lineage checks match on it."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].properties[\"fid\"]"
+      ],
+      "note": "The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": ["bng.post_intervention_vertical_habitats.geom"],
+      "note": "Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. Its size comes from its Area, not the shape. The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary."
     },
     {
       "table": "Vertical Area Habitats Post-Intervention",
@@ -851,6 +959,26 @@
     {
       "table": "Hedgerows Baseline",
       "stage": "baseline",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["baseline.hedgerows[].properties[\"fid\"]"],
+      "note": "The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref."
+    },
+    {
+      "table": "Hedgerows Baseline",
+      "stage": "baseline",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": ["bng.baseline_hedgerows.geom"],
+      "note": "Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. The length the units are priced on is measured from it. The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary."
+    },
+    {
+      "table": "Hedgerows Baseline",
+      "stage": "baseline",
       "column": "Habitat Ref",
       "readAs": "Parcel Ref",
       "use": "used",
@@ -944,6 +1072,26 @@
         "baseline.hedgerows[].properties[\"feature_uuid\"]"
       ],
       "note": "Named by a post-intervention feature’s parent_uuid: the lineage checks match on it."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["postIntervention.hedgerows[].properties[\"fid\"]"],
+      "note": "The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": ["bng.post_intervention_hedgerows.geom"],
+      "note": "Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. The length the units are priced on is measured from it. The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary."
     },
     {
       "table": "Hedgerows Post-Intervention",
@@ -1179,6 +1327,26 @@
     {
       "table": "Watercourses Baseline",
       "stage": "baseline",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["baseline.watercourses[].properties[\"fid\"]"],
+      "note": "The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref."
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": ["bng.baseline_watercourses.geom"],
+      "note": "Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. The length the units are priced on is measured from it. The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary."
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
       "column": "Habitat Ref",
       "readAs": "Parcel Ref",
       "use": "used",
@@ -1298,6 +1466,26 @@
         "baseline.watercourses[].properties[\"feature_uuid\"]"
       ],
       "note": "Named by a post-intervention feature’s parent_uuid: the lineage checks match on it."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["postIntervention.watercourses[].properties[\"fid\"]"],
+      "note": "The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": ["bng.post_intervention_watercourses.geom"],
+      "note": "Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. The length the units are priced on is measured from it. The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary."
     },
     {
       "table": "Watercourses Post-Intervention",
@@ -1597,6 +1785,26 @@
     {
       "table": "Individual Trees Baseline",
       "stage": "baseline",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["baseline.trees[].properties[\"fid\"]"],
+      "note": "The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref."
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": ["bng.baseline_trees.geom"],
+      "note": "Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. Its size comes from its tree size: each point is one tree, not the shape. The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary."
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
       "column": "Habitat Ref",
       "readAs": "Tree Ref",
       "use": "used",
@@ -1710,6 +1918,26 @@
         "baseline.trees[].properties[\"feature_uuid\"]"
       ],
       "note": "Named by a post-intervention feature’s parent_uuid: the lineage checks match on it."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "fid",
+      "readAs": "fid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["postIntervention.trees[].properties[\"fid\"]"],
+      "note": "The row’s primary key, kept in `properties`: a refusal names the row by it when the row has no Habitat Ref."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "geom",
+      "readAs": "geometry",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": ["bng.post_intervention_trees.geom"],
+      "note": "Stored in the layer’s PostGIS table, keyed by featureId, and shown on the map. Its size comes from its tree size: each point is one tree, not the shape. The geometry checks refuse a file on it: its type, whether it can be read, and whether it lies inside the Red Line Boundary."
     },
     {
       "table": "Individual Trees Post-Intervention",

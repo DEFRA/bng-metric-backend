@@ -5,17 +5,20 @@ import {
 } from 'bng-library/bng-service'
 
 import { USE } from './template-column-uses.js'
+import { PRIMARY_KEY, READ_AS_GEOMETRY } from './template-mapping.js'
 
 /**
  * The template-to-service field mapping (BMD-1178): for every column of every
  * template table, at each stage, the stored field it fills, whether the
  * service uses, ignores or refuses the file on it, and what uses it.
  *
- * Built from three declarative sources, so it cannot drift from the code:
- * the template's schema (bng-library's TEMPLATE_SCHEMA), the reader's column
- * mapping (template-mapping.js) and the column uses beside it
- * (template-column-uses.js). scripts/gen-template-mapping.js writes it to
- * data-dictionary/template-mapping.md and .json.
+ * Built from declarative sources, so it cannot drift from the code: the
+ * template's GeoPackage specification (bng-library's GPKG_SPEC, as
+ * bng-metric-template publishes it: every column, fid and geometry
+ * included), the reader's column mapping (template-mapping.js), the column
+ * uses beside it (template-column-uses.js), and the PostGIS table each
+ * layer's geometry is stored in. scripts/gen-template-mapping.js writes it
+ * to data-dictionary/template-mapping.md and .json.
  */
 
 /** The project document each stage's tables are saved to. */
@@ -42,6 +45,9 @@ const STAGES = [STAGE_BASELINE, STAGE_POST_INTERVENTION]
 /** The open map each feature keeps the columns the reader reads in. */
 const PROPERTIES = 'properties'
 
+/** The layer a document holds one feature of, not an array of them. */
+const SINGLE_FEATURE_LAYER = 'redline'
+
 /**
  * Each template table → the logical layer and stage the reader reads it as.
  *
@@ -62,12 +68,24 @@ function tablesRead(mapping) {
   return tables
 }
 
-/** The fields a column fills at a stage, as full data-dictionary paths. */
-function storedFields({ layer, stage, column, readAs, columnUse }) {
-  if (stage === BOTH_STAGES) {
-    return []
+/** The data-dictionary path of a layer's feature in a stage's document. */
+function featurePath(stage, layer) {
+  const many = layer === SINGLE_FEATURE_LAYER ? '' : '[]'
+  return `${STAGE_DOCUMENT[stage]}.${DOCUMENT_LAYER[layer]}${many}`
+}
+
+/** The fields a column fills at one stage, as full data-dictionary paths. */
+function stageFields({ layer, stage, column, readAs, columnUse, sources }) {
+  // The geometry is stored in the layer's PostGIS table, keyed by the
+  // feature's featureId, not in the document. Null when no table stores it,
+  // which columnRow reports.
+  if (readAs === READ_AS_GEOMETRY) {
+    return [
+      sources.geometryColumns[STAGE_DOCUMENT[stage]]?.[DOCUMENT_LAYER[layer]] ??
+        null
+    ]
   }
-  const feature = `${STAGE_DOCUMENT[stage]}.${DOCUMENT_LAYER[layer]}[]`
+  const feature = featurePath(stage, layer)
   const named =
     columnUse[stage === STAGE_BASELINE ? 'baseline' : 'postIntervention']
   const fields = named.map((field) => `${feature}.${field}`)
@@ -77,6 +95,32 @@ function storedFields({ layer, stage, column, readAs, columnUse }) {
     fields.push(`${feature}.${PROPERTIES}["${column}"]`)
   }
   return fields
+}
+
+/**
+ * The fields a column fills, as full data-dictionary paths: at both stages
+ * for the Red Line Boundary, whose one table each stage's document reads.
+ */
+function storedFields(column) {
+  const stages = column.stage === BOTH_STAGES ? STAGES : [column.stage]
+  return stages.flatMap((stage) => stageFields({ ...column, stage }))
+}
+
+/**
+ * How the reader reads a column: by the name the mapping gives it, or null
+ * when it drops it. The primary key and the geometry are read on every
+ * table, beside the mapping (template-tables.js).
+ *
+ * @returns {string | null | undefined} undefined when the reader has no mapping for it
+ */
+function readAsOf(layerMapping, geometryColumn, column) {
+  if (column === PRIMARY_KEY) {
+    return PRIMARY_KEY
+  }
+  if (column === geometryColumn) {
+    return READ_AS_GEOMETRY
+  }
+  return layerMapping.columns.get(column)
 }
 
 /** The data-dictionary path of a stored field: `properties["…"]` is the open map. */
@@ -90,7 +134,7 @@ export function dictionaryPathOf(field) {
  * @property {string} table the template table
  * @property {string} stage STAGE_BASELINE, STAGE_POST_INTERVENTION or BOTH_STAGES
  * @property {string} column the template column
- * @property {string | null} readAs the name the reader reads it by, or null when it drops it
+ * @property {string | null} readAs the name the reader reads it by, `geometry` for the feature's shape, or null when it drops it
  * @property {string} use one of USE
  * @property {string[]} usedBy
  * @property {string[]} storedFields full paths in the data dictionary
@@ -115,13 +159,38 @@ function unmappable(readAs, columnUse) {
 }
 
 /**
+ * The problems with a column's stored fields: a geometry no PostGIS table
+ * stores, or a field the data dictionary does not declare.
+ *
+ * @param {string} label the table and column, for the message
+ * @param {string} layer
+ * @param {Array<string | null>} fields
+ * @param {Set<string>} dictionaryPaths
+ * @returns {string[]}
+ */
+function storedFieldProblems(label, layer, fields, dictionaryPaths) {
+  const problems = fields.includes(null)
+    ? [`${label}: no PostGIS table stores the ${layer} layer's geometry`]
+    : []
+  const undeclared = fields.filter(
+    (field) => field !== null && !dictionaryPaths.has(dictionaryPathOf(field))
+  )
+  return [
+    ...problems,
+    ...undeclared.map(
+      (field) => `${label}: ${field} is not in the data dictionary`
+    )
+  ]
+}
+
+/**
  * One column's row, and the problems with it.
  *
  * @returns {{ row: MappingRow | null, problems: string[] }}
  */
-function columnRow({ table, layer, stage, column, sources }) {
+function columnRow({ table, layer, stage, column, geometryColumn, sources }) {
   const label = `${table} / ${column}`
-  const readAs = sources.mapping[layer].columns.get(column)
+  const readAs = readAsOf(sources.mapping[layer], geometryColumn, column)
   const columnUse = sources.uses[layer]?.[column]
   const reason = unmappable(readAs, columnUse)
   if (reason) {
@@ -133,14 +202,16 @@ function columnRow({ table, layer, stage, column, sources }) {
       `${label}: the reader drops it, so it must be ignored, not ${columnUse.use}`
     )
   }
-  const fields = storedFields({ layer, stage, column, readAs, columnUse })
-  const undeclared = fields.filter(
-    (field) => !sources.dictionaryPaths.has(dictionaryPathOf(field))
-  )
+  const fields = storedFields({
+    layer,
+    stage,
+    column,
+    readAs,
+    columnUse,
+    sources
+  })
   problems.push(
-    ...undeclared.map(
-      (field) => `${label}: ${field} is not in the data dictionary`
-    )
+    ...storedFieldProblems(label, layer, fields, sources.dictionaryPaths)
   )
   const row = {
     table,
@@ -149,7 +220,7 @@ function columnRow({ table, layer, stage, column, sources }) {
     readAs,
     use: columnUse.use,
     usedBy: [...columnUse.usedBy],
-    storedFields: fields,
+    storedFields: fields.filter((field) => field !== null),
     note: columnUse.note
   }
   return { row, problems }
@@ -160,9 +231,9 @@ function columnRow({ table, layer, stage, column, sources }) {
  *
  * @returns {{ rows: MappingRow[], problems: string[] }}
  */
-function tableRows({ table, columns, layer, stage, sources }) {
+function tableRows({ table, columns, geometryColumn, layer, stage, sources }) {
   const found = columns.map(({ name: column }) =>
-    columnRow({ table, layer, stage, column, sources })
+    columnRow({ table, layer, stage, column, geometryColumn, sources })
   )
   return {
     rows: found.map(({ row }) => row).filter(Boolean),
@@ -194,7 +265,9 @@ function strayUses(uses, covered) {
  * lacks, a dropped column not ignored, or a stored field the data dictionary
  * does not declare. Each names its table and column.
  *
- * @param {{ schema: { tables: Array<{ name: string, columns: Array<{ name: string }> }> }, mapping: object, uses: object, dictionaryPaths: Set<string> }} sources
+ * @param {{ spec: { tables: Array<{ name: string, geometryColumn: string, columns: Array<{ name: string }> }> }, mapping: object, uses: object, geometryColumns: Record<string, Record<string, string>>, dictionaryPaths: Set<string> }} sources
+ *   `geometryColumns`: each document → each of its layers → the PostGIS
+ *   column its geometry is stored in, as its data-dictionary path
  * @returns {{ rows: MappingRow[], problems: string[] }}
  */
 export function buildTemplateFieldMapping(sources) {
@@ -203,10 +276,16 @@ export function buildTemplateFieldMapping(sources) {
   const problems = []
   const covered = new Map()
 
-  for (const { name: table, columns } of sources.schema.tables) {
+  for (const { name: table, columns, geometryColumn } of sources.spec.tables) {
     const read = tables.get(table)
     if (read) {
-      const found = tableRows({ table, columns, ...read, sources })
+      const found = tableRows({
+        table,
+        columns,
+        geometryColumn,
+        ...read,
+        sources
+      })
       rows.push(...found.rows)
       problems.push(...found.problems)
       const layerColumns = covered.get(read.layer) ?? new Set()

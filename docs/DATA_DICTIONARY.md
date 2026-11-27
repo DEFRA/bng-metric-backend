@@ -45,17 +45,18 @@ and what uses it (the calculation, a validation or the display).
 
 `scripts/gen-template-mapping.js` builds it from:
 
-| Source                                    | Gives                                             | Lives in                                                             |
-| ----------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------- |
-| The template's schema                     | every table and column                            | bng-library's `TEMPLATE_SCHEMA`                                      |
-| The reader's column mapping               | whether each column is read, and under which name | `src/validation/geopackage/service-template/template-mapping.js`     |
-| The column uses                           | use, what uses it, the stored fields, a note      | `src/validation/geopackage/service-template/template-column-uses.js` |
-| This dictionary's fields (the Joi schema) | that every stored field it names exists           | `src/validation/project.js`                                          |
+| Source                                                                                                              | Gives                                                                                                          | Lives in                                                                           |
+| ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| The template's [GeoPackage specification](https://github.com/DEFRA/bng-metric-template/blob/main/spec/gpkg-spec.md) | every table and column, `fid` and geometry included                                                            | bng-library's `GPKG_SPEC`, its copy of bng-metric-template's `spec/gpkg-spec.json` |
+| The reader's column mapping                                                                                         | whether each column is read, and under which name; the primary key and geometry, which it reads on every table | `src/validation/geopackage/service-template/template-mapping.js`                   |
+| The column uses                                                                                                     | use, what uses it, the stored fields, a note                                                                   | `src/validation/geopackage/service-template/template-column-uses.js`               |
+| The geometry tables                                                                                                 | the PostGIS column each layer's geometry is stored in                                                          | `src/db/feature-tables.js`                                                         |
+| This dictionary's fields (the Joi schema and the Drizzle tables)                                                    | that every stored field it names exists                                                                        | `src/validation/project.js`, `src/db/schema/*.js`                                  |
 
 The generator refuses to write, and
 `src/validation/geopackage/service-template/template-field-mapping.test.js`
-fails, naming the table and column, when a template column has no mapping in
-the reader or no use, a use names a column the template lacks, a column the
+fails, naming the table and column, when a column the specification lists has
+no mapping in the reader or no use, a use names a column the template lacks, a column the
 reader drops is not `ignored`, or a stored field is not in this dictionary. So
 a column the template gains must be decided in both files. The freshness check
 below covers the mapping's two files too.

@@ -7,10 +7,13 @@
  * path in the data dictionary), whether the service uses it, ignores it or
  * refuses the file on it, and what uses it.
  *
- * Its sources are declarative: the template's schema (bng-library), the
- * reader's column mapping (template-mapping.js), the uses beside it
- * (template-column-uses.js) and the data dictionary's fields (the Joi
- * project schema). It reads no clock and no randomness, so it writes the same
+ * Its sources are declarative: the template's GeoPackage specification
+ * (bng-library's copy of bng-metric-template's spec/gpkg-spec.json, so every
+ * column the specification lists, fid and geometry included, must be
+ * mapped), the reader's column mapping (template-mapping.js), the uses
+ * beside it (template-column-uses.js), the PostGIS table each layer's
+ * geometry is stored in (src/db/feature-tables.js) and the data dictionary's
+ * fields (the Joi project schema and the Drizzle tables). It reads no clock and no randomness, so it writes the same
  * bytes from the same code, and CI diffs it as it diffs the data dictionary.
  * It refuses to write a mapping with a column unaccounted for.
  *
@@ -21,18 +24,23 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
+  GPKG_SPEC,
   STAGE_BASELINE,
-  STAGE_POST_INTERVENTION,
-  TEMPLATE_SCHEMA
+  STAGE_POST_INTERVENTION
 } from 'bng-library/bng-service'
 
+import { FEATURE_TABLE_SETS } from '../src/db/feature-tables.js'
 import { TEMPLATE_COLUMN_USES_1_0 } from '../src/validation/geopackage/service-template/template-column-uses.js'
 import {
   BOTH_STAGES,
   buildTemplateFieldMapping
 } from '../src/validation/geopackage/service-template/template-field-mapping.js'
 import { TEMPLATE_MAPPING_1_0 } from '../src/validation/geopackage/service-template/template-mapping.js'
-import { collectProjectFields } from './gen-data-dictionary.js'
+import {
+  collectProjectFields,
+  collectTables,
+  describeTable
+} from './gen-data-dictionary.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DATA_DICTIONARY_DIR = join(HERE, '..', 'data-dictionary')
@@ -53,6 +61,8 @@ const MAPPING_REF =
 const USES_REF =
   'src/validation/geopackage/service-template/template-column-uses.js'
 const DATA_DICTIONARY_REF = 'data-dictionary/data-dictionary.md'
+const SPEC_URL =
+  'https://github.com/DEFRA/bng-metric-template/blob/main/spec/gpkg-spec.md'
 
 const STAGE_LABELS = {
   [STAGE_BASELINE]: 'baseline',
@@ -61,17 +71,52 @@ const STAGE_LABELS = {
 }
 
 /**
+ * Each document → each of its layers → the PostGIS column its geometry is
+ * stored in, as its path in the data dictionary (`bng.baseline_habitats.geom`).
+ */
+function geometryColumns() {
+  return Object.fromEntries(
+    Object.entries(FEATURE_TABLE_SETS).map(([document, tables]) => [
+      document,
+      Object.fromEntries(
+        Object.entries(tables).map(([layer, table]) => [
+          layer,
+          `${describeTable(table).name}.${table.geom.name}`
+        ])
+      )
+    ])
+  )
+}
+
+/** Every path the data dictionary declares: project fields and table columns. */
+function dictionaryPaths() {
+  const tableColumns = collectTables().flatMap(({ name, columns }) =>
+    columns.map((column) => `${name}.${column.name}`)
+  )
+  return new Set([
+    ...collectProjectFields().map(({ path }) => path),
+    ...tableColumns
+  ])
+}
+
+/** What the mapping is built from. */
+export function templateMappingSources() {
+  return {
+    spec: GPKG_SPEC,
+    mapping: TEMPLATE_MAPPING_1_0,
+    uses: TEMPLATE_COLUMN_USES_1_0,
+    geometryColumns: geometryColumns(),
+    dictionaryPaths: dictionaryPaths()
+  }
+}
+
+/**
  * The mapping's rows, or a thrown error naming every column unaccounted for.
  *
  * @returns {import('../src/validation/geopackage/service-template/template-field-mapping.js').MappingRow[]}
  */
 export function generateTemplateMapping() {
-  const { rows, problems } = buildTemplateFieldMapping({
-    schema: TEMPLATE_SCHEMA,
-    mapping: TEMPLATE_MAPPING_1_0,
-    uses: TEMPLATE_COLUMN_USES_1_0,
-    dictionaryPaths: new Set(collectProjectFields().map(({ path }) => path))
-  })
+  const { rows, problems } = buildTemplateFieldMapping(templateMappingSources())
   if (problems.length > 0) {
     const listed = problems.map((problem) => `  - ${problem}`).join('\n')
     throw new Error(`The template mapping is incomplete:\n${listed}`)
@@ -136,6 +181,9 @@ export function renderMarkdown(rows) {
     `${repoFileLink(DATA_DICTIONARY_REF, 'data dictionary')}, whether the service uses it,`,
     'ignores it or refuses the file on it, and what uses it.',
     '',
+    `The columns are those of the [GeoPackage specification](${SPEC_URL}), which`,
+    'describes the template file itself; every column it lists has a row here.',
+    '',
     `${rows.length} columns: ${countOf(rows, 'used')} used, ${countOf(rows, 'ignored')} ignored, ${countOf(rows, 'refused')} refused on.`,
     '',
     '## Reading the mapping',
@@ -148,10 +196,12 @@ export function renderMarkdown(rows) {
     '- **Stored field**: the paths in the data dictionary the value is saved to.',
     '  Every column the service reads is also kept, under its own name, in the',
     "  feature's `properties` open map; a column the reader drops is never",
-    '  stored.',
+    "  stored. The geometry is stored in the layer's PostGIS table instead, keyed",
+    "  by the feature's `featureId`.",
     '- **Stages**: a baseline upload reads the Baseline tables. A baseline +',
     '  post-intervention upload reads every table, and saves the Baseline tables',
-    '  as the baseline as it does so.',
+    '  as the baseline as it does so. Both read the Red Line Boundary, into each',
+    "  stage's document.",
     '- Every text column, used or not, is checked at upload for its length and,',
     "  for a drop-down, that the template's list offers the value. That check is",
     '  not listed as a use.',

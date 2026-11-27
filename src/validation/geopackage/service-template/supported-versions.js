@@ -1,7 +1,7 @@
 import { TEMPLATE_SCHEMA } from 'bng-library/bng-service'
 
 import { GPKG_CONTENTS_FEATURES_DATA_TYPE } from '../geopackage-constants.js'
-import { TEMPLATE_MAPPING_1_0 } from './template-mapping.js'
+import { PRIMARY_KEY, TEMPLATE_MAPPING_1_0 } from './template-mapping.js'
 
 /**
  * The BNG Service template versions the service reads, and how to read each.
@@ -12,7 +12,6 @@ import { TEMPLATE_MAPPING_1_0 } from './template-mapping.js'
  * A version not listed is refused, naming the version found.
  */
 
-const PRIMARY_KEY_COLUMN = 'fid'
 const PRIMARY_KEY_TYPE = 'INTEGER'
 
 /**
@@ -34,7 +33,7 @@ function toLayerDef(table) {
     },
     columns: [
       {
-        name: PRIMARY_KEY_COLUMN,
+        name: PRIMARY_KEY,
         sqliteType: PRIMARY_KEY_TYPE,
         notNull: true,
         primaryKey: true

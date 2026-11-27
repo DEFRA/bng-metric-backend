@@ -1,30 +1,39 @@
-import { TEMPLATE_SCHEMA } from 'bng-library/bng-service'
+import {
+  GEOMETRY_COLUMN,
+  GPKG_SPEC,
+  RED_LINE_BOUNDARY
+} from 'bng-library/bng-service'
 
-import { collectProjectFields } from '../../../../scripts/gen-data-dictionary.js'
+import { templateMappingSources } from '../../../../scripts/gen-template-mapping.js'
 import {
   TEMPLATE_COLUMN_USES_1_0,
   USE,
   USED_BY
 } from './template-column-uses.js'
 import { buildTemplateFieldMapping } from './template-field-mapping.js'
-import { TEMPLATE_MAPPING_1_0 } from './template-mapping.js'
+import {
+  PRIMARY_KEY,
+  READ_AS_GEOMETRY,
+  TEMPLATE_MAPPING_1_0
+} from './template-mapping.js'
 
-const DICTIONARY_PATHS = new Set(collectProjectFields().map(({ path }) => path))
-
-const SOURCES = {
-  schema: TEMPLATE_SCHEMA,
-  mapping: TEMPLATE_MAPPING_1_0,
-  uses: TEMPLATE_COLUMN_USES_1_0,
-  dictionaryPaths: DICTIONARY_PATHS
-}
+const SOURCES = templateMappingSources()
 
 const AREA_BASELINE = 'Area Habitats Baseline'
 const NEW_COLUMN = 'Survey Method'
 
-/** The template's schema with one more column on a table. */
+/** A row of the mapping, by table and column. */
+function rowOf(table, column) {
+  return buildTemplateFieldMapping(SOURCES).rows.find(
+    (row) => row.table === table && row.column === column
+  )
+}
+
+/** The specification with one more column on a table. */
 function withColumn(table, column) {
   return {
-    tables: TEMPLATE_SCHEMA.tables.map((entry) =>
+    ...GPKG_SPEC,
+    tables: GPKG_SPEC.tables.map((entry) =>
       entry.name === table
         ? {
             ...entry,
@@ -50,10 +59,10 @@ describe('the BNG Service template 1.0 field mapping', () => {
     expect(problems).toEqual([])
   })
 
-  test('has a row for every column of every table, at its stage', () => {
+  test('has a row for every column the GeoPackage specification lists, at its stage', () => {
     const { rows } = buildTemplateFieldMapping(SOURCES)
 
-    const expected = TEMPLATE_SCHEMA.tables.flatMap(({ name, columns }) =>
+    const expected = GPKG_SPEC.tables.flatMap(({ name, columns }) =>
       columns.map((column) => `${name} / ${column.name}`)
     )
     expect(rows.map(({ table, column }) => `${table} / ${column}`)).toEqual(
@@ -97,6 +106,43 @@ describe('the BNG Service template 1.0 field mapping', () => {
     ])
   })
 
+  test('maps the primary key and the geometry of every table, which the column mapping leaves to the reader', () => {
+    const { rows } = buildTemplateFieldMapping(SOURCES)
+
+    for (const { name, geometryColumn } of GPKG_SPEC.tables) {
+      const columns = rows.filter((row) => row.table === name)
+      expect(columns.find((row) => row.column === PRIMARY_KEY).readAs).toBe(
+        PRIMARY_KEY
+      )
+      expect(columns.find((row) => row.column === geometryColumn).readAs).toBe(
+        READ_AS_GEOMETRY
+      )
+    }
+  })
+
+  test('stores the geometry in the layer’s PostGIS table, not the document', () => {
+    expect(
+      rowOf('Hedgerows Post-Intervention', GEOMETRY_COLUMN).storedFields
+    ).toEqual(['bng.post_intervention_hedgerows.geom'])
+  })
+
+  test('keeps the primary key in the feature’s properties', () => {
+    expect(rowOf(AREA_BASELINE, PRIMARY_KEY).storedFields).toEqual([
+      'baseline.habitats[].properties["fid"]'
+    ])
+  })
+
+  test('stores the Red Line Boundary at both stages, which each read its one table', () => {
+    expect(rowOf(RED_LINE_BOUNDARY, GEOMETRY_COLUMN).storedFields).toEqual([
+      'bng.baseline_red_line.geom',
+      'bng.post_intervention_red_line.geom'
+    ])
+    expect(rowOf(RED_LINE_BOUNDARY, PRIMARY_KEY).storedFields).toEqual([
+      'baseline.redLine.properties["fid"]',
+      'postIntervention.redLine.properties["fid"]'
+    ])
+  })
+
   test('stores a dropped column nowhere', () => {
     const { rows } = buildTemplateFieldMapping(SOURCES)
     const dropped = rows.filter((row) => row.readAs === null)
@@ -118,7 +164,7 @@ describe('the BNG Service template 1.0 field mapping', () => {
     test('when a template column has no mapping in the reader', () => {
       const { problems } = buildTemplateFieldMapping({
         ...SOURCES,
-        schema: withColumn(AREA_BASELINE, NEW_COLUMN)
+        spec: withColumn(AREA_BASELINE, NEW_COLUMN)
       })
 
       expect(problems).toEqual([
@@ -133,7 +179,7 @@ describe('the BNG Service template 1.0 field mapping', () => {
       ])
       const { problems } = buildTemplateFieldMapping({
         ...SOURCES,
-        schema: withColumn(AREA_BASELINE, NEW_COLUMN),
+        spec: withColumn(AREA_BASELINE, NEW_COLUMN),
         mapping: {
           ...TEMPLATE_MAPPING_1_0,
           areas: { ...TEMPLATE_MAPPING_1_0.areas, columns }
@@ -173,6 +219,48 @@ describe('the BNG Service template 1.0 field mapping', () => {
       expect(problems).toContain(
         'Hedgerows Baseline / Length: the reader drops it, so it must be ignored, not used'
       )
+    })
+
+    test('when the primary key has no use', () => {
+      const { [PRIMARY_KEY]: fid, ...trees } = TEMPLATE_COLUMN_USES_1_0.trees
+      const { problems } = buildTemplateFieldMapping({
+        ...SOURCES,
+        uses: { ...TEMPLATE_COLUMN_USES_1_0, trees }
+      })
+
+      expect(fid).toBeDefined()
+      expect(problems).toEqual([
+        `Individual Trees Baseline / ${PRIMARY_KEY}: no use in template-column-uses.js`,
+        `Individual Trees Post-Intervention / ${PRIMARY_KEY}: no use in template-column-uses.js`
+      ])
+    })
+
+    test('when the geometry has no use', () => {
+      const { [GEOMETRY_COLUMN]: geom, ...areas } =
+        TEMPLATE_COLUMN_USES_1_0.areas
+      const { problems } = buildTemplateFieldMapping({
+        ...SOURCES,
+        uses: { ...TEMPLATE_COLUMN_USES_1_0, areas }
+      })
+
+      expect(geom).toBeDefined()
+      expect(problems).toEqual([
+        `${AREA_BASELINE} / ${GEOMETRY_COLUMN}: no use in template-column-uses.js`,
+        `Area Habitats Post-Intervention / ${GEOMETRY_COLUMN}: no use in template-column-uses.js`
+      ])
+    })
+
+    test('when no PostGIS table stores a layer’s geometry', () => {
+      const { trees, ...baseline } = SOURCES.geometryColumns.baseline
+      const { problems } = buildTemplateFieldMapping({
+        ...SOURCES,
+        geometryColumns: { ...SOURCES.geometryColumns, baseline }
+      })
+
+      expect(trees).toBeDefined()
+      expect(problems).toEqual([
+        `Individual Trees Baseline / ${GEOMETRY_COLUMN}: no PostGIS table stores the trees layer's geometry`
+      ])
     })
 
     test('when a stored field is not in the data dictionary', () => {

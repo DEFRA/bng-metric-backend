@@ -1,5 +1,6 @@
 import {
   CURRENT_TEMPLATE_VERSION,
+  GPKG_SPEC,
   TEMPLATE_SCHEMA
 } from 'bng-library/bng-service'
 
@@ -35,6 +36,18 @@ describe('toStructuralSchema', () => {
       TEMPLATE_SCHEMA.tables.map((table) => table.name)
     )
     expect(schema.layers.every((layer) => layer.required)).toBe(true)
+  })
+
+  test('checks an upload against the columns the field mapping covers: those of the GeoPackage specification', () => {
+    const columnsOf = (tables) =>
+      tables.map(({ name, columns }) => [name, columns.map((c) => c.name)])
+
+    expect(
+      schema.layers.map(({ tableName, columns }) => [
+        tableName,
+        columns.map((column) => column.name)
+      ])
+    ).toEqual(columnsOf(GPKG_SPEC.tables))
   })
 
   test('gives each layer its geometry, spatial reference and columns', () => {

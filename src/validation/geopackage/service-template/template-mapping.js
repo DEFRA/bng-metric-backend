@@ -33,6 +33,19 @@ import {
  * size is the tree helper's area for its size class.
  */
 
+/**
+ * The primary key, which the reader keeps on every feature under its own
+ * name, beside the column mapping: messages name a row by it
+ * (template-tables.js).
+ */
+export const PRIMARY_KEY = 'fid'
+
+/**
+ * What the reader reads a table's geometry column as: the feature's shape,
+ * not one of its attributes. It is not in the column mapping either.
+ */
+export const READ_AS_GEOMETRY = 'geometry'
+
 /** The legacy pipeline's name for a habitat's reference. */
 const PARCEL_REF = 'Parcel Ref'
 
