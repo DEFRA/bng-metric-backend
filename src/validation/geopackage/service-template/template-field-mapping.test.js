@@ -221,7 +221,7 @@ describe('the BNG Service template 1.0 field mapping', () => {
       )
     })
 
-    test('when the primary key or the geometry has no use', () => {
+    test('when the primary key has no use', () => {
       const { [PRIMARY_KEY]: fid, ...trees } = TEMPLATE_COLUMN_USES_1_0.trees
       const { problems } = buildTemplateFieldMapping({
         ...SOURCES,
@@ -232,6 +232,21 @@ describe('the BNG Service template 1.0 field mapping', () => {
       expect(problems).toEqual([
         `Individual Trees Baseline / ${PRIMARY_KEY}: no use in template-column-uses.js`,
         `Individual Trees Post-Intervention / ${PRIMARY_KEY}: no use in template-column-uses.js`
+      ])
+    })
+
+    test('when the geometry has no use', () => {
+      const { [GEOMETRY_COLUMN]: geom, ...areas } =
+        TEMPLATE_COLUMN_USES_1_0.areas
+      const { problems } = buildTemplateFieldMapping({
+        ...SOURCES,
+        uses: { ...TEMPLATE_COLUMN_USES_1_0, areas }
+      })
+
+      expect(geom).toBeDefined()
+      expect(problems).toEqual([
+        `${AREA_BASELINE} / ${GEOMETRY_COLUMN}: no use in template-column-uses.js`,
+        `Area Habitats Post-Intervention / ${GEOMETRY_COLUMN}: no use in template-column-uses.js`
       ])
     })
 
